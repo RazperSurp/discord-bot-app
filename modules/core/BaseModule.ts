@@ -1,0 +1,1 @@
+import { ModuleConfig } from "./main";
