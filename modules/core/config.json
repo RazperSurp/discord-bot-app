@@ -1,5 +1,21 @@
 {
+    "database": {
+        "production": "./db/production.db",
+        "migration": "./db/migration.db"
+    },
+    "permissions": {  
+        "hasBasicAccess": 1,
+        "hasAdvancedAccess": 2,
+        "hasAdminAccess": 4,
+        "canUseCommands": 8,
+        "canUploadFiles": 16
+    },
     "modules": {
-        
+        "pong": {
+            
+        }
+    },
+    "commands": {
+
     }
 }

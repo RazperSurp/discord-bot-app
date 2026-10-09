@@ -7,3 +7,5 @@
 /files
 /files/
 /files/*
+
+/core/db/production.db
