@@ -16,7 +16,7 @@
         "canUseAdminCommands": 16
     },
     "commands": {
-        "path": "./core/commands",
+        "path": "./commands",
         "list": {
             "ping": {
                 "permissions": [2],

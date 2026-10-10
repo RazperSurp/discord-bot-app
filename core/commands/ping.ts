@@ -1,8 +1,11 @@
-import BaseCommand from './BaseCommand';
-import { PassedArgumentsList } from "./BaseCommand";
+// import BaseCommand from './BaseCommand.ts';
+import BaseCommand from "./BaseCommand.ts";
+// console.log(PassedArgumentsList)
 
-export default class Ping extends BaseCommand {
-    _do(namedArgs: PassedArgumentsList): any {
+// console.log()
+
+export default class ping extends BaseCommand {
+    _do(namedArgs: any): any {
         return 'pong';
     }
 }

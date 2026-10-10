@@ -1,9 +1,9 @@
-import { commands } from '../config.json' with { type: 'json' }
-import { PermissionSet } from '../permissions';
+import config from '../config.json' with { type: 'json' }
+import { PermissionSet } from '../permissions.ts';
 
-const commandsList: CommandsList = commands.list; 
+const commandsList: CommandsList = config.commands.list; 
 
-export type CommandName = keyof typeof commands;
+export type CommandName = keyof typeof config.commands;
 export interface CommandsList { [index: string]: CommandConfig }
 export interface CommandArgumentsList { [index: string]: CommandArgument }
 export interface PassedArgumentsList { [index: string]: any }
@@ -20,8 +20,8 @@ export interface CommandConfig {
     arguments: CommandArgumentsList;
 }
 
-export default abstract class BaseCommand {
-    static get class(): CommandName | string { return this.name  }
+export default class BaseCommand {
+    static get class(): CommandName | string { return this.name }
     get class(): CommandName | string { return this.constructor.name }
 
     get description(): string { return commandsList[this.class].description }
@@ -30,13 +30,17 @@ export default abstract class BaseCommand {
 
     _app: any;
 
-    permissions: PermissionSet;
+    // permissions: PermissionSet;
     result?: unknown; 
 
-    constructor(app: any, ...args: any[]) {
-        this.permissions = new PermissionSet(this.config.permissions.reduce((acc, p) => acc |= p))
-        this._app = app;
+    constructor(...args: any[]) {
+        // this.permissions = new PermissionSet(this.config.permissions.reduce((acc, p) => acc |= p))
         this.result = this.call(args);
+    }
+
+    static execute(...args: any[]) {
+        const instance = new this(args);
+        return instance.result;
     }
 
     call(...args: any[]): any {

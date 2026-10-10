@@ -1,11 +1,13 @@
 import { Client, Events, GatewayIntentBits } from 'discord.js';
-import { Database } from 'sqlite3';
+import sqlite3 from 'sqlite3';
 
 import config from './config.json' with { type: 'json' };
 
 interface IncludedCommandsList { [index: string]: Function }
  
 export class Application {
+    static instance: Application; 
+
     isClientOnline: boolean = false;
 
     _client?: Client;
@@ -22,23 +24,23 @@ export class Application {
         }
     }
 
-    db: Database;
+    db: sqlite3.Database;
     commands: IncludedCommandsList = {}
 
     constructor(client: Client) {
-        this.db = new Database(config.database.production)
+        this.db = new sqlite3.Database(config.database.production)
         this.client = client;
 
     }
 
-    static async init(client: Client) {
-        const instance = new Application(client);
+    static async init(client: Client): Promise<Application> {
+        Application.instance = new Application(client);
 
         for (const name of Object.keys(config.commands.list)) {
-            await instance.includeCommand(name);
+            await Application.instance.includeCommand(name);
         }
 
-        return instance;
+        return Application.instance;
     }
 
     async includeCommand(name: string) {
@@ -46,13 +48,12 @@ export class Application {
             console.log(`including command: ${name}...`)
             
             const resolve = await import(`${config.commands.path}/${name}.ts`);
-            this.commands[name] = resolve[name];
+            this.commands[name] = resolve.default;
 
             console.log(`including command: ${name}... OK`)
         } catch (e) {
             console.log(`including command: ${name}... ERR`)
             console.warn(e);
         }
-        // this.commands[name] = 
     } 
 }

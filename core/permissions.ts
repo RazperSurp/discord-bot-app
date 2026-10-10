@@ -1,7 +1,7 @@
-import { permissions } from './config.json' with { type: 'json' }
-const permissionsList: PermissionsList = permissions; 
+import config from './config.json' with { type: 'json' }
+const permissionsList: PermissionsList = config.permissions; 
 
-export type PermissionBitMask = typeof permissions[keyof typeof permissions]
+export type PermissionBitMask = typeof config.permissions[keyof typeof config.permissions]
 export interface PermissionsList { [index: string]: PermissionBitMask }
 
 export class PermissionSet {
