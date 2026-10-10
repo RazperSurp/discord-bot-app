@@ -8,4 +8,8 @@
 /files/
 /files/*
 
+/files-tmp
+/files-tmp/
+/files-tmp/*
+
 /core/db/production.db

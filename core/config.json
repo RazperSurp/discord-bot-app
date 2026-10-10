@@ -1,0 +1,25 @@
+{
+    
+    "files": {
+        "commonPath": "./files/",
+        "tempPath": "./files-tmp/"
+    },
+    "database": {
+        "production": "./db/production.db",
+        "migration": "./db/migration.db"
+    },
+    "permissions": {
+        "canUploadFiles": 1,
+        "canUseBasicCommands": 2,
+        "canUseHiddenCommands": 4,
+        "canUseTestCommands": 8,
+        "canUseAdminCommands": 16
+    }, 
+    "commands": {
+        "ping": {
+            "permissions": [2],
+            "description": "отправляет ПОНГ в ответ на вызов команды. При передаче ",
+            "arguments": { }
+        }
+    }
+}
