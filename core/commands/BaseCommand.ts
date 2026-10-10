@@ -1,10 +1,12 @@
 import { commands } from '../config.json' with { type: 'json' }
 import { PermissionSet } from '../permissions';
-const commandsList: CommandsList = commands; 
 
+const commandsList: CommandsList = commands.list; 
 
+export type CommandName = keyof typeof commands;
 export interface CommandsList { [index: string]: CommandConfig }
 export interface CommandArgumentsList { [index: string]: CommandArgument }
+export interface PassedArgumentsList { [index: string]: any }
 export interface CommandArgument {
     type: string;
     default: any;
@@ -12,17 +14,13 @@ export interface CommandArgument {
     description: string;
 }
 
-export type CommandName = keyof typeof commands;
-
 export interface CommandConfig {
     permissions: number[];
     description: string;
     arguments: CommandArgumentsList;
 }
 
-
-export abstract class BaseCommand {
-
+export default abstract class BaseCommand {
     static get class(): CommandName | string { return this.name  }
     get class(): CommandName | string { return this.constructor.name }
 
@@ -30,14 +28,23 @@ export abstract class BaseCommand {
     get config(): CommandConfig { return commandsList[this.class] }
     get arguments(): CommandArgumentsList { return commandsList[this.class].arguments }
 
+    _app: any;
+
     permissions: PermissionSet;
     result?: unknown; 
 
-    constructor() {
+    constructor(app: any, ...args: any[]) {
         this.permissions = new PermissionSet(this.config.permissions.reduce((acc, p) => acc |= p))
+        this._app = app;
+        this.result = this.call(args);
     }
 
-    call(...args: any[]): void {
-        Object.keys(this.arguments)
+    call(...args: any[]): any {
+        let namedArgs: PassedArgumentsList = {};
+
+        Object.keys(this.arguments).forEach((k, i) => { namedArgs[k] = args[i] })
+        return this._do(namedArgs);
     }
+
+    _do(namedArgs: PassedArgumentsList): any { }
 }

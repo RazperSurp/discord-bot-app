@@ -14,12 +14,15 @@
         "canUseHiddenCommands": 4,
         "canUseTestCommands": 8,
         "canUseAdminCommands": 16
-    }, 
+    },
     "commands": {
-        "ping": {
-            "permissions": [2],
-            "description": "отправляет ПОНГ в ответ на вызов команды. При передаче ",
-            "arguments": { }
+        "path": "./core/commands",
+        "list": {
+            "ping": {
+                "permissions": [2],
+                "description": "отправляет ПОНГ в ответ на вызов команды. При передаче ",
+                "arguments": { }
+            }
         }
     }
 }
