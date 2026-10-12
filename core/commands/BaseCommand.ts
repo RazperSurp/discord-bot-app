@@ -5,8 +5,6 @@ import { PermissionSet } from '../permissions.ts';
 import pkg from 'discord.js';
 const { Interaction, SlashCommandBuilder } = pkg;
 
-// const { Interaction, SlashCommandBuilder } = require('discord.js');
-
 const commandsList: CommandsList = config.commands.list; 
 
 export type CommandName = keyof typeof config.commands;
@@ -50,7 +48,6 @@ export default class BaseCommand {
 
     static async execute(user: Users, interaction: typeof Interaction): Promise<unknown> {
         const instance = new this(interaction);
-        console.log(user.permissions?.mask, instance.permissions.mask, user.permissions?.has(instance.permissions.mask))
         if (user.permissions?.has(instance.permissions.mask))
             instance.result = await instance.call(interaction);
         else throw 403;

@@ -30,6 +30,12 @@
                     }
                 }
             },
+            "flip": {
+                "permissions": [2],
+                "description": "подбрасывает монетку",
+                "arguments": {
+                }
+            },
             "sql": {
                 "permissions": [8],
                 "description": "sql query dbg",

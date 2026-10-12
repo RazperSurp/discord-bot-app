@@ -71,18 +71,24 @@ export class Application {
 
     async auth(member: GuildMember): Promise<Users> {
         return new Promise((resolve, reject) => {
-            this.db.get(`select * from users where id = ${member.id}`, (err, result) => {
+            let sql = `select * from users where id = ${member.user.id}`;
+            console.log([sql, member, member.user.displayName, member.displayName]);
+
+            this.db.get(`select * from users where id = '${member.user.id}'`, (err, result) => {
+                console.log(result);
                 let user = new Users(result ?? {});
 
                 if (!result) {
                     this.db.exec(`insert into users (id, username, showname, permissions) values (${member.id}, '${member.user.username}', '${member.displayName}', 2)`);
-                    user.id = member.id, 
+                    user.id = member.user.id, 
                     user.username = member.user.username;
                     user.showname = member.displayName;
                     user.permissions = 2;
                 } else {
+                    console.log([user.showname, member.displayName, user.showname != member.displayName])
+
                     if (user.username != member.user.username) user.username = member.user.username;
-                    if (user.showname != member.user.displayName) user.showname = member.user.displayName;
+                    if (user.showname != member.displayName) user.showname = member.displayName;
                 }
 
                 resolve(user);

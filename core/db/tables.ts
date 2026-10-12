@@ -8,14 +8,17 @@ export class Users {
     get username(): string | undefined { return this._username }
     set username(value: string) {
         this._username = value;
-        Application.instance.db.exec(`update users set username = '${value}' where id = ${this.id}`);
+        Application.instance.db.exec(`update users set username = '${value}' where id = '${this.id}'`);
     }
 
     _showname: string | undefined;
-    get showname(): string | undefined { return this._username }
+    get showname(): string | undefined { return this._showname }
     set showname(value: string) {
         this._showname = value;
-        Application.instance.db.exec(`update users set showname = '${value}' where id = ${this.id}`);
+        let sql = `update users set showname = '${value}' where id = '${this.id}'`;
+        Application.instance.db.exec(sql, (err) => {
+            console.log([sql, err]);
+        });
     }
     
     _permissions: PermissionSet | undefined;
