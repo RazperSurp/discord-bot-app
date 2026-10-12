@@ -20,8 +20,15 @@
         "list": {
             "ping": {
                 "permissions": [2],
-                "description": "отправляет ПОНГ в ответ на вызов команды. При передаче ",
-                "arguments": { }
+                "description": "отправляет ПОНГ в ответ на вызов команды. При передаче msg возвращает переданное сообщение.",
+                "arguments": {
+                    "msg": {
+                        "isRequired": false,
+                        "description": "Сообщение, которое необходимо вернуть.",
+                        "type": "string",
+                        "default": null
+                    }
+                }
             }
         }
     }

@@ -1,9 +1,13 @@
-import { Client, Events, GatewayIntentBits } from 'discord.js';
+import { Client, Events, GatewayIntentBits, MessageFlags, REST, Routes } from 'discord.js';
+
+import pkg from 'discord.js';
+const { Interaction } = pkg;
+
 import sqlite3 from 'sqlite3';
 
 import config from './config.json' with { type: 'json' };
 
-interface IncludedCommandsList { [index: string]: Function }
+interface IncludedCommandsList { [index: string]: any }
  
 export class Application {
     static instance: Application; 
@@ -17,11 +21,14 @@ export class Application {
             this._client = client;
             this.isClientOnline = false;
 
-            this._client.once(Events.ClientReady, (readyClient) => {
-                this._client = readyClient;
-                this.isClientOnline = true;
-            });
         }
+    }
+
+    _rest?: REST
+    get rest(): REST | undefined { return this._rest }
+    set rest(value) {
+        if (this.isClientOnline) this._rest = value;
+        else console.error('token wasnt validated yet.');
     }
 
     db: sqlite3.Database;
@@ -33,14 +40,79 @@ export class Application {
 
     }
 
-    static async init(client: Client): Promise<Application> {
-        Application.instance = new Application(client);
+    static init(client: Client): Promise<Application> {
+        return new Promise(async (resolve, reject) => {
+            Application.instance = new Application(client);
 
-        for (const name of Object.keys(config.commands.list)) {
-            await Application.instance.includeCommand(name);
+            for (const name of Object.keys(config.commands.list)) {
+                await Application.instance.includeCommand(name);
+            }
+
+            console.log(`using token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"...`);
+            Application.instance.client?.login(process.env.DISCORD_TOKEN);
+            Application.instance.client?.once(Events.ClientReady, (readyClient) => {
+                Application.instance.client = readyClient;
+                Application.instance.isClientOnline = true;
+                Application.instance.rest = new REST().setToken(process.env.DISCORD_TOKEN ?? '');
+
+                console.log(`using token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"... OK as ${Application.instance.client.user?.tag}`);
+                Application.instance.registerCommands().then(() => {
+                    Application.instance.client?.on(Events.InteractionCreate, interaction => { return Application.instance.handleInteraction(interaction) })
+
+                    resolve(Application.instance);
+                });
+            });
+
+            // resolve(Application.instance);
+
+        })
+    }
+
+    async handleInteraction(interaction: Interaction) {
+        if (!interaction.isChatInputCommand()) return;
+
+        if (!this.commands.hasOwnProperty(interaction.commandName)) {
+            console.error(`No command matching ${interaction.commandName} was found.`);
+            return;
         }
 
-        return Application.instance;
+        try {
+            await this.commands[interaction.commandName].execute(interaction);
+        } catch (error) {
+            console.error(error);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({
+                    content: 'There was an error while executing this command!',
+                    flags: MessageFlags.Ephemeral,
+                });
+            } else {
+                await interaction.reply({
+                    content: 'There was an error while executing this command!',
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
+        }
+
+    }
+
+    async registerCommands() {
+        let commands = []
+
+        console.log(`registering commands...`)
+        for (const [name, commandClass] of Object.entries(this.commands)) {
+            console.log(`- preparing ${name}...`);
+            commands.push(commandClass.getSlashBuilder().data.toJSON());
+            console.log(`- preparing ${name}... OK`);
+        }
+        console.log(`registering commands... OK`)
+
+        console.log(`putting commands to rest...`)
+        this.client?.guilds.cache.each((guild, id) => {
+            console.log(`- putting commands on G#${id}...`)
+            this.rest?.put(Routes.applicationGuildCommands(this.client?.user?.id ?? '', id), { body: commands });
+            console.log(`- putting commands on G#${id}... OK`)
+        })
+        console.log(`putting commands to rest... OK`)
     }
 
     async includeCommand(name: string) {

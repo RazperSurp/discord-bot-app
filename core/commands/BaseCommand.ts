@@ -1,6 +1,11 @@
 import config from '../config.json' with { type: 'json' }
 import { PermissionSet } from '../permissions.ts';
 
+import pkg from 'discord.js';
+const { Interaction, SlashCommandBuilder } = pkg;
+
+// const { Interaction, SlashCommandBuilder } = require('discord.js');
+
 const commandsList: CommandsList = config.commands.list; 
 
 export type CommandName = keyof typeof config.commands;
@@ -24,31 +29,57 @@ export default class BaseCommand {
     static get class(): CommandName | string { return this.name }
     get class(): CommandName | string { return this.constructor.name }
 
+    static get description(): string { return commandsList[this.class].description }
     get description(): string { return commandsList[this.class].description }
+
+    static get config(): CommandConfig { return commandsList[this.class] }
     get config(): CommandConfig { return commandsList[this.class] }
+
+    static get arguments(): CommandArgumentsList { return commandsList[this.class].arguments }
     get arguments(): CommandArgumentsList { return commandsList[this.class].arguments }
 
     _app: any;
 
-    // permissions: PermissionSet;
+    permissions: PermissionSet;
     result?: unknown; 
 
-    constructor(...args: any[]) {
-        // this.permissions = new PermissionSet(this.config.permissions.reduce((acc, p) => acc |= p))
-        this.result = this.call(args);
+    constructor(interaction: typeof Interaction) {
+        this.permissions = new PermissionSet(this.config.permissions.reduce((acc, p) => acc |= p))
     }
 
-    static execute(...args: any[]) {
-        const instance = new this(args);
+    static async execute(interaction: typeof Interaction): Promise<unknown> {
+        const instance = new this(interaction);
+        instance.result = await instance.call(interaction);
         return instance.result;
     }
 
-    call(...args: any[]): any {
-        let namedArgs: PassedArgumentsList = {};
-
-        Object.keys(this.arguments).forEach((k, i) => { namedArgs[k] = args[i] })
-        return this._do(namedArgs);
+    async call(interaction: typeof Interaction): Promise<unknown> {
+        console.log(`called ${this.class}...`)
+        try {
+            const result = await this._do(interaction);
+            console.log(`called ${this.class}... OK got ${result}`)
+            return result;
+        } catch (err) {
+            console.error(`called ${this.class}... ERR`)
+            console.error(err);
+        }
+        
     }
 
-    _do(namedArgs: PassedArgumentsList): any { }
+    async _do(interaction: typeof Interaction): Promise<any> { }
+
+    static getSlashBuilder() {
+        let builder = new SlashCommandBuilder()
+            .setName(this.name)
+            .setDescription(this.config.description);
+
+        for (const [name, options] of Object.entries(this.config.arguments)) {
+            builder = builder.addStringOption((option: any) => option.setName(name).setDescription(options.description).setRequired(options.isRequired))
+        }
+
+        return {
+            data: builder,
+            execute: this.execute
+        }
+    }
 }

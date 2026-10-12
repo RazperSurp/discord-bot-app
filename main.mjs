@@ -4,7 +4,7 @@ import { Application } from "./core/core.ts";
 
 
 const app = await Application.init(new Client({ intents: [GatewayIntentBits.Guilds] }));
-console.log(app.commands.ping.execute());
+// console.log(app.commands.ping.register());
 
 setTimeout(() => {
 	console.log(123)
@@ -13,4 +13,3 @@ setTimeout(() => {
 // client.once(Events.ClientReady, (readyClient) => {
 // 	console.log(`Ready! Logged in as ${readyClient.user.tag}`);
 // });
-// client.login(token);
