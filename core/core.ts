@@ -1,11 +1,14 @@
-import { Client, Events, GatewayIntentBits, MessageFlags, REST, Routes } from 'discord.js';
+import { Client, Events, GatewayIntentBits, GuildMember, MessageFlags, REST, Routes } from 'discord.js';
+
 
 import pkg from 'discord.js';
 const { Interaction } = pkg;
+import path from 'path'; 
 
 import sqlite3 from 'sqlite3';
 
 import config from './config.json' with { type: 'json' };
+import { Users } from './db/tables.ts';
 
 interface IncludedCommandsList { [index: string]: any }
  
@@ -35,7 +38,8 @@ export class Application {
     commands: IncludedCommandsList = {}
 
     constructor(client: Client) {
-        this.db = new sqlite3.Database(config.database.production)
+        console.log(`connecting db from ${path.resolve(config.database.production)}...`)
+        this.db = new sqlite3.Database(path.resolve(config.database.production), sqlite3.OPEN_READWRITE)
         this.client = client;
 
     }
@@ -62,35 +66,56 @@ export class Application {
                     resolve(Application.instance);
                 });
             });
-
-            // resolve(Application.instance);
-
         })
     }
 
-    async handleInteraction(interaction: Interaction) {
+    async auth(member: GuildMember): Promise<Users> {
+        return new Promise((resolve, reject) => {
+            this.db.get(`select * from users where id = ${member.id}`, (err, result) => {
+                let user = new Users(result ?? {});
+
+                if (!result) {
+                    this.db.exec(`insert into users (id, username, showname, permissions) values (${member.id}, '${member.user.username}', '${member.displayName}', 2)`);
+                    user.id = member.id, 
+                    user.username = member.user.username;
+                    user.showname = member.displayName;
+                    user.permissions = 2;
+                } else {
+                    if (user.username != member.user.username) user.username = member.user.username;
+                    if (user.showname != member.user.displayName) user.showname = member.user.displayName;
+                }
+
+                resolve(user);
+            });
+        });
+    }
+
+    async handleInteraction(interaction: typeof Interaction) {
         if (!interaction.isChatInputCommand()) return;
 
+        const user = await this.auth(interaction.member);
+
+        console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}...`)
         if (!this.commands.hasOwnProperty(interaction.commandName)) {
-            console.error(`No command matching ${interaction.commandName} was found.`);
-            return;
+            console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR (404)`);
+            return interaction.reply('такой команды нет еблан утырок даун дятел козёл простфиля придурок дибил отстань');
         }
 
         try {
-            await this.commands[interaction.commandName].execute(interaction);
+            const result = await this.commands[interaction.commandName].execute(user, interaction);
+            console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}... OK got ${result}`);
         } catch (error) {
-            console.error(error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({
-                    content: 'There was an error while executing this command!',
-                    flags: MessageFlags.Ephemeral,
-                });
-            } else {
-                await interaction.reply({
-                    content: 'There was an error while executing this command!',
-                    flags: MessageFlags.Ephemeral,
-                });
-            }
+            console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
+            if (error === 403) await interaction.reply({
+                content: 'недостаточно прав лол ты что женщина?? XDDD',
+                flags: MessageFlags.Ephemeral,
+            }); else if (interaction.replied || interaction.deferred) await interaction.followUp({
+                content: 'произошла ошибка при выполнении команды',
+                flags: MessageFlags.Ephemeral,
+            }); else await interaction.reply({
+                content: 'произошла ошибка при выполнении команды',
+                flags: MessageFlags.Ephemeral,
+            });
         }
 
     }

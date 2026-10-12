@@ -5,8 +5,8 @@
         "tempPath": "./files-tmp/"
     },
     "database": {
-        "production": "./db/production.db",
-        "migration": "./db/migration.db"
+        "production": "./core/db/production.db",
+        "migration": "./core/db/migration.db"
     },
     "permissions": {
         "canUploadFiles": 1,
@@ -25,6 +25,18 @@
                     "msg": {
                         "isRequired": false,
                         "description": "Сообщение, которое необходимо вернуть.",
+                        "type": "string",
+                        "default": null
+                    }
+                }
+            },
+            "sql": {
+                "permissions": [8],
+                "description": "sql query dbg",
+                "arguments": {
+                    "statement": {
+                        "isRequired": true,
+                        "description": "query itself",
                         "type": "string",
                         "default": null
                     }

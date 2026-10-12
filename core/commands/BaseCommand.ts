@@ -1,4 +1,5 @@
 import config from '../config.json' with { type: 'json' }
+import { Users } from '../db/tables.ts';
 import { PermissionSet } from '../permissions.ts';
 
 import pkg from 'discord.js';
@@ -47,9 +48,13 @@ export default class BaseCommand {
         this.permissions = new PermissionSet(this.config.permissions.reduce((acc, p) => acc |= p))
     }
 
-    static async execute(interaction: typeof Interaction): Promise<unknown> {
+    static async execute(user: Users, interaction: typeof Interaction): Promise<unknown> {
         const instance = new this(interaction);
-        instance.result = await instance.call(interaction);
+        console.log(user.permissions?.mask, instance.permissions.mask, user.permissions?.has(instance.permissions.mask))
+        if (user.permissions?.has(instance.permissions.mask))
+            instance.result = await instance.call(interaction);
+        else throw 403;
+        
         return instance.result;
     }
 
