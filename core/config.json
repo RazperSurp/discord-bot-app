@@ -20,7 +20,7 @@
         "list": {
             "ping": {
                 "permissions": [2],
-                "description": "отправляет ПОНГ в ответ на вызов команды. При передаче msg возвращает переданное сообщение.",
+                "description": "отправляет ПОНГ в ответ на вызов команды",
                 "arguments": {
                     "msg": {
                         "isRequired": false,
@@ -36,13 +36,30 @@
                 "arguments": {
                 }
             },
+            "play": {
+                "permissions": [2],
+                "description": "начать игровую сессию",
+                "arguments": {
+                    "game": {
+                        "isRequired": true,
+                        "description": "игра",
+                        "type": "select",
+                        "default": null,
+                        "options": [
+                            { "name": "tictactoe", "value": "крестики-нолики" },
+                            { "name": "russianroulette", "value": "русская рулетка // WIP" },
+                            { "name": "mafia", "value": "мафия // WIP" }
+                        ]
+                    }
+                }
+            },
             "sql": {
                 "permissions": [8],
-                "description": "sql query dbg",
+                "description": "дебаг sql запросов",
                 "arguments": {
                     "statement": {
                         "isRequired": true,
-                        "description": "query itself",
+                        "description": "запрос",
                         "type": "string",
                         "default": null
                     }

@@ -72,10 +72,8 @@ export class Application {
     async auth(member: GuildMember): Promise<Users> {
         return new Promise((resolve, reject) => {
             let sql = `select * from users where id = ${member.user.id}`;
-            console.log([sql, member, member.user.displayName, member.displayName]);
 
             this.db.get(`select * from users where id = '${member.user.id}'`, (err, result) => {
-                console.log(result);
                 let user = new Users(result ?? {});
 
                 if (!result) {
@@ -85,8 +83,6 @@ export class Application {
                     user.showname = member.displayName;
                     user.permissions = 2;
                 } else {
-                    console.log([user.showname, member.displayName, user.showname != member.displayName])
-
                     if (user.username != member.user.username) user.username = member.user.username;
                     if (user.showname != member.displayName) user.showname = member.displayName;
                 }

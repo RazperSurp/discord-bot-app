@@ -16,6 +16,7 @@ export interface CommandArgument {
     default: any;
     isRequired: boolean;
     description: string;
+    options: Array<Record<string, number | string>>
 }
 
 export interface CommandConfig {
@@ -56,10 +57,8 @@ export default class BaseCommand {
     }
 
     async call(interaction: typeof Interaction): Promise<unknown> {
-        console.log(`called ${this.class}...`)
         try {
             const result = await this._do(interaction);
-            console.log(`called ${this.class}... OK got ${result}`)
             return result;
         } catch (err) {
             console.error(`called ${this.class}... ERR`)
@@ -75,9 +74,23 @@ export default class BaseCommand {
             .setName(this.name)
             .setDescription(this.config.description);
 
-        for (const [name, options] of Object.entries(this.config.arguments)) {
-            builder = builder.addStringOption((option: any) => option.setName(name).setDescription(options.description).setRequired(options.isRequired))
+        for (const [name, arg] of Object.entries(this.config.arguments)) {
+            builder = builder.addStringOption((option: any) => {
+                let optionSchema = option.setName(name)
+                    .setDescription(arg.description)
+                    .setRequired(arg.isRequired);
+
+
+                if (arg.type == 'select' && !arg.options.length) console.warn(`warn: type of ${this.name} - ${name} is SELECT but options is not passed`);
+                else if (arg.type == 'select' && arg.options.length > 0) {
+                    optionSchema = optionSchema.addChoices(arg.options);
+                }
+
+                return optionSchema;
+            });
+
         }
+
 
         return {
             data: builder,

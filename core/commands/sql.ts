@@ -8,7 +8,7 @@ export default class sql extends BaseCommand {
     _do(interaction: Interaction): any {
         const statement = interaction.options.get('statement').value;
         console.log(statement);
-        Application.instance.db.get(interaction.options.get('statement').value, (err, result) => {
+        Application.instance.db.all(interaction.options.get('statement').value, (err, result) => {
             console.log(result);
             interaction.reply('bruh.')
         });
