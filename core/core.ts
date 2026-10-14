@@ -73,23 +73,14 @@ export class Application {
         return new Promise((resolve, reject) => {
             let sql = `select * from users where id = ${member.user.id}`;
 
-            this.db.get(`select * from users where id = '${member.user.id}'`, (err, result) => {
-                let user = new Users(result ?? {});
-
-                if (!result) {
+            Users.getById(member.user.id).then(user => {
+                if (!user) {
                     this.db.exec(`insert into users (id, username, showname, permissions) values (${member.id}, '${member.user.username}', '${member.displayName}', 2)`);
-                    user.id = member.user.id, 
-                    user.username = member.user.username;
-                    user.showname = member.displayName;
-                    user.permissions = 2;
-                } else {
-                    if (user.username != member.user.username) user.username = member.user.username;
-                    if (user.showname != member.displayName) user.showname = member.displayName;
-                }
-
-                resolve(user);
+                    Users.getById(member.user.id).then(user => { resolve(user) });
+                } else resolve(user);    
+            
             });
-        });
+        })
     }
 
     async handleInteraction(interaction: typeof Interaction) {
@@ -108,6 +99,7 @@ export class Application {
             console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}... OK got ${result}`);
         } catch (error) {
             console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
+            console.error(error);
             if (error === 403) await interaction.reply({
                 content: 'недостаточно прав лол ты что женщина?? XDDD',
                 flags: MessageFlags.Ephemeral,

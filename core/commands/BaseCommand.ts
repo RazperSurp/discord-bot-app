@@ -50,15 +50,15 @@ export default class BaseCommand {
     static async execute(user: Users, interaction: typeof Interaction): Promise<unknown> {
         const instance = new this(interaction);
         if (user.permissions?.has(instance.permissions.mask))
-            instance.result = await instance.call(interaction);
+            instance.result = await instance.call(user, interaction);
         else throw 403;
         
         return instance.result;
     }
 
-    async call(interaction: typeof Interaction): Promise<unknown> {
+    async call(user: Users, interaction: typeof Interaction): Promise<unknown> {
         try {
-            const result = await this._do(interaction);
+            const result = await this._do(user, interaction);
             return result;
         } catch (err) {
             console.error(`called ${this.class}... ERR`)
@@ -67,7 +67,7 @@ export default class BaseCommand {
         
     }
 
-    async _do(interaction: typeof Interaction): Promise<any> { }
+    async _do(user: Users, interaction: typeof Interaction): Promise<any> { }
 
     static getSlashBuilder() {
         let builder = new SlashCommandBuilder()
