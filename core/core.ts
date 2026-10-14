@@ -72,10 +72,16 @@ export class Application {
     async auth(member: GuildMember): Promise<Users> {
         return new Promise((resolve, reject) => {
             Users.getById(member.user.id).then(user => {
-                if (!user) {
-                    this.db.exec(`insert into users (id, username, showname, permissions) values (${member.id}, '${member.user.username}', '${member.displayName}', ${config.permissions.canUseBasicCommands})`);
-                    Users.getById(member.user.id).then(user => { resolve(user) });
-                } else resolve(user);
+                if (user) resolve(user);
+                else this.db.exec(`
+                    insert into users (id, username, showname, permissions) 
+                    values (
+                        ${member.id}, 
+                        '${member.user.username}', 
+                        '${member.displayName}', 
+                        ${config.permissions.canUseBasicCommands}
+                    )
+                `, () => { Users.getById(member.user.id).then(user => { resolve(user) }) });
             });
         })
     }
@@ -84,6 +90,7 @@ export class Application {
         if (!interaction.isChatInputCommand()) return;
 
         const user = await this.auth(interaction.member);
+        user.actualize(interaction.member);
 
         console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}...`)
         if (!this.commands.hasOwnProperty(interaction.commandName)) {

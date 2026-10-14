@@ -46,9 +46,10 @@
                         "type": "select",
                         "default": null,
                         "options": [
-                            { "name": "tictactoe", "value": "крестики-нолики" },
-                            { "name": "russianroulette", "value": "русская рулетка // WIP" },
-                            { "name": "mafia", "value": "мафия // WIP" }
+                            { "value": "duel", "name": "дуэль нахуй насмерть" },
+                            { "value": "tictactoe", "name": "крестики ебать их в рот нолики // WIP" },
+                            { "value": "russianroulette", "name": "русская мать его чёрт побери рулетка // WIP" },
+                            { "value": "mafia", "name": "блядская мафия нет блять нахуй клан сопрано // WIP" }
                         ]
                     }
                 }
