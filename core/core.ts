@@ -71,14 +71,11 @@ export class Application {
 
     async auth(member: GuildMember): Promise<Users> {
         return new Promise((resolve, reject) => {
-            let sql = `select * from users where id = ${member.user.id}`;
-
             Users.getById(member.user.id).then(user => {
                 if (!user) {
-                    this.db.exec(`insert into users (id, username, showname, permissions) values (${member.id}, '${member.user.username}', '${member.displayName}', 2)`);
+                    this.db.exec(`insert into users (id, username, showname, permissions) values (${member.id}, '${member.user.username}', '${member.displayName}', ${config.permissions.canUseBasicCommands})`);
                     Users.getById(member.user.id).then(user => { resolve(user) });
-                } else resolve(user);    
-            
+                } else resolve(user);
             });
         })
     }
