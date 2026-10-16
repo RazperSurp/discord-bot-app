@@ -8,9 +8,12 @@ import path from 'path';
 import sqlite3 from 'sqlite3';
 
 import config from './config.json' with { type: 'json' };
-import { Users } from './db/tables.ts';
+import Users from './db/users.ts';
 
 interface IncludedCommandsList { [index: string]: any }
+interface DatabaseExtended extends sqlite3.Database {
+    tables: Record<string, any>
+}
  
 export class Application {
     static instance: Application; 
@@ -34,19 +37,55 @@ export class Application {
         else console.error('token wasnt validated yet.');
     }
 
-    db: sqlite3.Database;
+    db?: DatabaseExtended;
     commands: IncludedCommandsList = {}
 
     constructor(client: Client) {
-        console.log(`connecting db from ${path.resolve(config.database.production)}...`)
-        this.db = new sqlite3.Database(path.resolve(config.database.production), sqlite3.OPEN_READWRITE)
         this.client = client;
+    }
 
+    openDb(): Promise<sqlite3.Database> {
+        return new Promise((resolve, reject) => {
+            console.log(`opening db from ${path.resolve(config.database.production)}...`)
+            let db = new sqlite3.Database(path.resolve(config.database.production), sqlite3.OPEN_READWRITE, openErr => {
+                db = Object.defineProperty(db, 'tables', { value: {}, writable: true });
+
+                if (openErr) {
+                    console.error(`opening db from ${path.resolve(config.database.production)}... ERR`)
+                    console.error(openErr);
+                    reject(openErr);
+                } else {
+                    console.log(`opening db from ${path.resolve(config.database.production)}... OK`)
+                    console.log(`importing tables models...`)
+                    db.all('SELECT DISTINCT "tbl_name" FROM "sqlite_master"', (async (err, rows) => {
+                        if (err) reject(err);
+                        else {
+                            for (const row of rows as Record<string, any>[] ) {
+                                console.log(`- importing "${row.tbl_name}"...`)
+                                try {
+                                    const resolve = await import(`./db/${row.tbl_name}.ts`);
+                                    db.tables = Object.defineProperty(db.tables, row.tbl_name, { value: resolve.default }) 
+                                    console.log(`- importing "${row.tbl_name}"... OK`)
+                                } catch(importErr) {
+                                    console.error(`- importing "${row.tbl_name}"... ERR, no model found`)
+                                }
+                            }
+
+                            console.log(`importing tables models... OK`)
+                            resolve(db);
+                        }
+                    }))
+                }
+            }) as DatabaseExtended;
+        })    
     }
 
     static init(client: Client): Promise<Application> {
         return new Promise(async (resolve, reject) => {
             Application.instance = new Application(client);
+            
+            Application.instance.db = await Application.instance.openDb();
+            console.log(Application.instance.db)
 
             for (const name of Object.keys(config.commands.list)) {
                 await Application.instance.includeCommand(name);
@@ -71,18 +110,9 @@ export class Application {
 
     async auth(member: GuildMember): Promise<Users> {
         return new Promise((resolve, reject) => {
-            Users.getById(member.user.id).then(user => {
-                if (user) resolve(user);
-                else this.db.exec(`
-                    insert into users (id, username, showname, permissions) 
-                    values (
-                        ${member.id}, 
-                        '${member.user.username}', 
-                        '${member.displayName}', 
-                        ${config.permissions.canUseBasicCommands}
-                    )
-                `, () => { Users.getById(member.user.id).then(user => { resolve(user) }) });
-            });
+            this.db?.tables.users.getById(member.user.id).then(user => {
+                if (user) resolve(user as Users);
+            }).catch(err => { (new Users({ id: member.id, username: member.user.username, showname: member.displayName, permissions: config.permissions.canUseBasicCommands })).insert().then(newUser => { resolve(newUser as Users) }) });
         })
     }
 
@@ -104,16 +134,20 @@ export class Application {
         } catch (error) {
             console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
             console.error(error);
-            if (error === 403) await interaction.reply({
-                content: 'недостаточно прав лол ты что женщина?? XDDD',
-                flags: MessageFlags.Ephemeral,
-            }); else if (interaction.replied || interaction.deferred) await interaction.followUp({
-                content: 'произошла ошибка при выполнении команды',
-                flags: MessageFlags.Ephemeral,
-            }); else await interaction.reply({
-                content: 'произошла ошибка при выполнении команды',
-                flags: MessageFlags.Ephemeral,
-            });
+
+            let method = interaction.replied || interaction.deferred ? 'followUp' : 'reply';
+            let msg = 'произошла ошибка';
+
+            switch ((error as any)?.code) {
+                case 400: msg = 'некорректный запрос'; break;
+                case 401: msg = 'авторизация не пройдена'; break;
+                case 403: msg = 'недостаточно прав'; break;
+                case 404: msg = 'не найдено'; break;
+                case 422: msg = 'некорректные параметры'; break;
+                case 429: msg = 'слишком много запросов'; break;
+            } 
+            
+            await interaction[method]({ content: msg, flags: MessageFlags.Ephemeral });
         }
 
     }
@@ -124,7 +158,7 @@ export class Application {
         console.log(`registering commands...`)
         for (const [name, commandClass] of Object.entries(this.commands)) {
             console.log(`- preparing ${name}...`);
-            commands.push(commandClass.getSlashBuilder().data.toJSON());
+            commands.push((await commandClass.getSlashBuilder()).data.toJSON());
             console.log(`- preparing ${name}... OK`);
         }
         console.log(`registering commands... OK`)

@@ -1,5 +1,6 @@
 import config from '../config.json' with { type: 'json' }
-import { Users } from '../db/tables.ts';
+import { Application } from '../core.ts';
+import Users from '../db/users.ts';
 import { PermissionSet } from '../permissions.ts';
 
 import pkg from 'discord.js';
@@ -16,7 +17,7 @@ export interface CommandArgument {
     default: any;
     isRequired: boolean;
     description: string;
-    options: Array<Record<string, number | string>>
+    table?: string;
 }
 
 export interface CommandConfig {
@@ -69,22 +70,27 @@ export default class BaseCommand {
 
     async _do(user: Users, interaction: typeof Interaction): Promise<any> { }
 
-    static getSlashBuilder() {
-        let builder = new SlashCommandBuilder()
+    static async getSlashBuilder() {
+        let options = [], builder = new SlashCommandBuilder()
             .setName(this.name)
             .setDescription(this.config.description);
 
         for (const [name, arg] of Object.entries(this.config.arguments)) {
+            console.log(arg.type == 'select', arg.table, typeof Application.instance.db?.tables[arg.table as string] == 'function');
+
+            if (arg.type == 'select' && !arg.table) console.warn(`warn: type of ${this.name} - ${name} is SELECT but table wasnt passed`);
+            else if (arg.type == 'select' && arg.table && typeof Application.instance.db?.tables[arg.table as string] == 'function') {
+                options = (await Application.instance.db?.tables[arg.table].all()).map(row => { return { value: row.name, name: `${row.name_ru} - ${row.description}` } });
+                console.log(options);
+            }
+
             builder = builder.addStringOption((option: any) => {
                 let optionSchema = option.setName(name)
                     .setDescription(arg.description)
                     .setRequired(arg.isRequired);
 
-
-                if (arg.type == 'select' && !arg.options.length) console.warn(`warn: type of ${this.name} - ${name} is SELECT but options is not passed`);
-                else if (arg.type == 'select' && arg.options.length > 0) {
-                    optionSchema = optionSchema.addChoices(arg.options);
-                }
+                if (options.length > 0) optionSchema = optionSchema.addChoices(options);
+                
 
                 return optionSchema;
             });

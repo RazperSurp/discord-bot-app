@@ -1,4 +1,4 @@
-import { Users } from "../db/tables.ts";
+import Users from "../db/users.ts";
 import BaseCommand from "./BaseCommand.ts";
 import pkg from 'discord.js';
 const { Interaction } = pkg;

@@ -45,12 +45,7 @@
                         "description": "игра",
                         "type": "select",
                         "default": null,
-                        "options": [
-                            { "value": "duel", "name": "дуэль нахуй насмерть" },
-                            { "value": "tictactoe", "name": "крестики ебать их в рот нолики // WIP" },
-                            { "value": "russianroulette", "name": "русская мать его чёрт побери рулетка // WIP" },
-                            { "value": "mafia", "name": "блядская мафия нет блять нахуй клан сопрано // WIP" }
-                        ]
+                        "table": "games"
                     }
                 }
             },
