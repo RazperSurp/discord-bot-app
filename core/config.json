@@ -48,18 +48,6 @@
                         "table": "games"
                     }
                 }
-            },
-            "sql": {
-                "permissions": [8],
-                "description": "дебаг sql запросов",
-                "arguments": {
-                    "statement": {
-                        "isRequired": true,
-                        "description": "запрос",
-                        "type": "string",
-                        "default": null
-                    }
-                }
             }
         }
     }

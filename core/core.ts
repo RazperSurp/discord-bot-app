@@ -1,14 +1,15 @@
 import { Client, Events, GatewayIntentBits, GuildMember, MessageFlags, REST, Routes } from 'discord.js';
 
-
-import pkg from 'discord.js';
-const { Interaction } = pkg;
+import fs from 'fs';
+import type { Interaction } from 'discord.js';
 import path from 'path'; 
 
 import sqlite3 from 'sqlite3';
 
 import config from './config.json' with { type: 'json' };
 import Users from './db/users.ts';
+
+
 
 interface IncludedCommandsList { [index: string]: any }
 interface DatabaseExtended extends sqlite3.Database {
@@ -44,8 +45,16 @@ export class Application {
         this.client = client;
     }
 
-    openDb(): Promise<sqlite3.Database> {
+    openDb(): Promise<DatabaseExtended> {
         return new Promise((resolve, reject) => {
+
+            const dbPath = path.resolve(config.database.production);
+
+            if (!fs.existsSync(dbPath)) {
+                console.log(`production db not found, cloning from ${config.database.migration}...`);
+                fs.copyFileSync(path.resolve(config.database.migration), dbPath);
+            }
+
             console.log(`opening db from ${path.resolve(config.database.production)}...`)
             let db = new sqlite3.Database(path.resolve(config.database.production), sqlite3.OPEN_READWRITE, openErr => {
                 db = Object.defineProperty(db, 'tables', { value: {}, writable: true });
@@ -72,7 +81,7 @@ export class Application {
                             }
 
                             console.log(`importing tables models... OK`)
-                            resolve(db);
+                            resolve(db as DatabaseExtended);
                         }
                     }))
                 }
@@ -85,42 +94,43 @@ export class Application {
             Application.instance = new Application(client);
             
             Application.instance.db = await Application.instance.openDb();
-            console.log(Application.instance.db)
 
-            for (const name of Object.keys(config.commands.list)) {
-                await Application.instance.includeCommand(name);
-            }
+            for (const name of Object.keys(config.commands.list)) await Application.instance.includeCommand(name);
 
             console.log(`using token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"...`);
-            Application.instance.client?.login(process.env.DISCORD_TOKEN);
-            Application.instance.client?.once(Events.ClientReady, (readyClient) => {
-                Application.instance.client = readyClient;
-                Application.instance.isClientOnline = true;
-                Application.instance.rest = new REST().setToken(process.env.DISCORD_TOKEN ?? '');
+            try {
+                Application.instance.client?.login(process.env.DISCORD_TOKEN);
+                Application.instance.client?.once(Events.ClientReady, (readyClient) => {
+                    Application.instance.client = readyClient;
+                    Application.instance.isClientOnline = true;
+                    Application.instance.rest = new REST().setToken(process.env.DISCORD_TOKEN ?? '');
 
-                console.log(`using token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"... OK as ${Application.instance.client.user?.tag}`);
-                Application.instance.registerCommands().then(() => {
-                    Application.instance.client?.on(Events.InteractionCreate, interaction => { return Application.instance.handleInteraction(interaction) })
+                    console.log(`using token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"... OK as ${Application.instance.client.user?.tag}`);
+                    Application.instance.registerCommands().then(() => {
+                        Application.instance.client?.on(Events.InteractionCreate, interaction => { return Application.instance.handleInteraction(interaction) })
 
-                    resolve(Application.instance);
+                        resolve(Application.instance);
+                    });
                 });
-            });
+            } catch (err) {
+                console.error(err);
+            }
         })
     }
 
     async auth(member: GuildMember): Promise<Users> {
         return new Promise((resolve, reject) => {
-            this.db?.tables.users.getById(member.user.id).then(user => {
-                if (user) resolve(user as Users);
-            }).catch(err => { (new Users({ id: member.id, username: member.user.username, showname: member.displayName, permissions: config.permissions.canUseBasicCommands })).insert().then(newUser => { resolve(newUser as Users) }) });
+            this.db?.tables.users.getById(member.user.id).then((user: Users) => {
+                if (user) resolve(user);
+            }).catch(() => { (new Users({ id: member.user.id, username: member.user.username, showname: member.displayName, permissions: config.permissions.canUseBasicCommands })).insert().then(newUser => { resolve(newUser as Users) }) });
         })
     }
 
-    async handleInteraction(interaction: typeof Interaction) {
+    async handleInteraction(interaction: Interaction) {
         if (!interaction.isChatInputCommand()) return;
 
-        const user = await this.auth(interaction.member);
-        user.actualize(interaction.member);
+        const user = await this.auth(interaction.member as GuildMember);
+        user.actualize(interaction.member as GuildMember);
 
         console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}...`)
         if (!this.commands.hasOwnProperty(interaction.commandName)) {
@@ -135,7 +145,6 @@ export class Application {
             console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
             console.error(error);
 
-            let method = interaction.replied || interaction.deferred ? 'followUp' : 'reply';
             let msg = 'произошла ошибка';
 
             switch ((error as any)?.code) {
@@ -147,7 +156,7 @@ export class Application {
                 case 429: msg = 'слишком много запросов'; break;
             } 
             
-            await interaction[method]({ content: msg, flags: MessageFlags.Ephemeral });
+            await interaction.replied || interaction.deferred ? interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }) : interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
         }
 
     }

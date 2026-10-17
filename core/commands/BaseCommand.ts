@@ -1,10 +1,11 @@
 import config from '../config.json' with { type: 'json' }
 import { Application } from '../core.ts';
+import BaseTable from '../db/BaseTable.ts';
 import Users from '../db/users.ts';
 import { PermissionSet } from '../permissions.ts';
 
-import pkg from 'discord.js';
-const { Interaction, SlashCommandBuilder } = pkg;
+import { SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 
 const commandsList: CommandsList = config.commands.list; 
 
@@ -44,11 +45,11 @@ export default class BaseCommand {
     permissions: PermissionSet;
     result?: unknown; 
 
-    constructor(interaction: typeof Interaction) {
+    constructor(interaction: ChatInputCommandInteraction) {
         this.permissions = new PermissionSet(this.config.permissions.reduce((acc, p) => acc |= p))
     }
 
-    static async execute(user: Users, interaction: typeof Interaction): Promise<unknown> {
+    static async execute(user: Users, interaction: ChatInputCommandInteraction): Promise<unknown> {
         const instance = new this(interaction);
         if (user.permissions?.has(instance.permissions.mask))
             instance.result = await instance.call(user, interaction);
@@ -57,7 +58,7 @@ export default class BaseCommand {
         return instance.result;
     }
 
-    async call(user: Users, interaction: typeof Interaction): Promise<unknown> {
+    async call(user: Users, interaction: ChatInputCommandInteraction): Promise<unknown> {
         try {
             const result = await this._do(user, interaction);
             return result;
@@ -68,20 +69,17 @@ export default class BaseCommand {
         
     }
 
-    async _do(user: Users, interaction: typeof Interaction): Promise<any> { }
+    async _do(user: Users, interaction: ChatInputCommandInteraction): Promise<any> { }
 
     static async getSlashBuilder() {
-        let options = [], builder = new SlashCommandBuilder()
+        let options: Record<string, string>[] = [], builder = new SlashCommandBuilder()
             .setName(this.name)
             .setDescription(this.config.description);
 
         for (const [name, arg] of Object.entries(this.config.arguments)) {
-            console.log(arg.type == 'select', arg.table, typeof Application.instance.db?.tables[arg.table as string] == 'function');
-
             if (arg.type == 'select' && !arg.table) console.warn(`warn: type of ${this.name} - ${name} is SELECT but table wasnt passed`);
             else if (arg.type == 'select' && arg.table && typeof Application.instance.db?.tables[arg.table as string] == 'function') {
-                options = (await Application.instance.db?.tables[arg.table].all()).map(row => { return { value: row.name, name: `${row.name_ru} - ${row.description}` } });
-                console.log(options);
+                options = (await Application.instance.db?.tables[arg.table].all()).map((row: BaseTable) => { return { value: row.name, name: `${row.name_ru} - ${row.description}` } });
             }
 
             builder = builder.addStringOption((option: any) => {
@@ -93,7 +91,7 @@ export default class BaseCommand {
                 
 
                 return optionSchema;
-            });
+            }) as SlashCommandBuilder;
 
         }
 

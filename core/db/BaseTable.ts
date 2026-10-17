@@ -96,7 +96,7 @@ export default class BaseTable {
                 
                 Application.instance.db?.run(sql, function (err) {
                   row.isExists = true;
-                  row.id = this.lastID;
+                  row.id = row.id ?? this.lastID;
                   
                   resolve(row);
                 })
