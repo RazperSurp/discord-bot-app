@@ -96,14 +96,14 @@ export default class BaseTable {
             const row = this;
             if (row.isExists) reject(409);
             else {
-                const props = Object.keys(row).map(p => p !== 'isExists' && typeof row[p] !== 'function' && !p.startsWith('_') ? p : null).filter(p => { if (row.table == 'Users') { return p } else if (p !== 'id') { return p }}) as string[];
+                const props = Object.keys(row).map(p => p !== 'isExists' && typeof row[p] !== 'function' && !p.startsWith('_') ? p : null).filter(p => { if (row.table == 'users') { return p } else if (p !== 'id') { return p }}) as string[];
                 const sql = `INSERT INTO ${row.table} (${props.join(', ') }) VALUES ('${props.map(p => row[p] instanceof PermissionSet ? row[p].mask : row[p]).join("', '")}')`;
-                
+
                 Application.instance.db?.run(sql, function (err) {
-                  row.isExists = true;
-                  row.id = (row.id === 0 ? undefined : row.id) ?? this.lastID;
-                  
-                  resolve(row);
+                    row.isExists = true;
+                    row.id = (row.id === 0 ? undefined : row.id) ?? this.lastID;
+                    
+                    resolve(row);
                 })
             }
         }) 

@@ -132,56 +132,76 @@ export class Application {
         return new Promise((resolve, reject) => {
             this.db?.tables.users.getById(member.user.id).then((user: Users) => {
                 if (user) resolve(user);
-            }).catch(() => { (new Users({ id: member.user.id, username: member.user.username, showname: member.displayName, permissions: config.permissions.canUseBasicCommands })).insert().then(newUser => { resolve(newUser as Users) }) });
+            }).catch(() => { 
+                (new Users({ 
+                    id: member.user.id, 
+                    username: member.user.username, 
+                    showname: member.displayName, 
+                    permissions: config.permissions.canUseBasicCommands 
+                })).insert().then(newUser => { resolve(newUser as Users) })
+            });
         })
     }
 
     async handleInteraction(interaction: Interaction) {
-        if (interaction.isChatInputCommand()) {
+        if (interaction.isChatInputCommand() || interaction.isButton()) {
             const user = await this.auth(interaction.member as GuildMember);
             user.actualize(interaction.member as GuildMember);
-
-            console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}...`)
-            if (!this.commands.hasOwnProperty(interaction.commandName)) {
-                console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR (404)`);
-                return interaction.reply('такой команды нет еблан утырок даун дятел козёл простфиля придурок дибил отстань');
-            }
-
-            try {
-                const result = await this.commands[interaction.commandName].execute(user, interaction);
-                console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}... OK got ${result}`);
-            } catch (error) {
-                console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
-                console.error(error);
-
-                let msg = 'произошла ошибка';
-
-                switch ((error as any)?.code) {
-                    case 400: msg = 'некорректный запрос'; break;
-                    case 401: msg = 'авторизация не пройдена'; break;
-                    case 403: msg = 'недостаточно прав'; break;
-                    case 404: msg = 'не найдено'; break;
-                    case 422: msg = 'некорректные параметры'; break;
-                    case 429: msg = 'слишком много запросов'; break;
-                } 
-                
-                await interaction.replied || interaction.deferred ? interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }) : interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
-            }
-        } else if (interaction.isButton()) {    
-            const user = await this.auth(interaction.member as GuildMember);
-            user.actualize(interaction.member as GuildMember);
-
-            const data = JSON.parse(interaction.customId) as ButtonInteractionData;
-
-            switch (data.type) {
-                case Application.BUTTON_INTERACTION_TYPE.GAME: 
-                    switch (data.action) {
-                        case Games.ACTION_TYPE.JOIN: return Lobbies.join(user, interaction, data.lobby as number)
-                        case Games.ACTION_TYPE.DECLINE: return Lobbies.decline(user, interaction, data.lobby as number)
-                    }
-            }
             
+            if (interaction.isChatInputCommand()) {
+                console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}...`)
+                if (!this.commands.hasOwnProperty(interaction.commandName)) {
+                    console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR (404)`);
+                    return interaction.reply('такой команды нет еблан утырок даун дятел козёл простфиля придурок дибил отстань');
+                }
+
+                try {
+                    const result = await this.commands[interaction.commandName].execute(user, interaction);
+                    console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}... OK got ${result}`);
+                } catch (error) {
+                    console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
+                    await this.handleException(user, interaction, error);
+                }
+            } else if (interaction.isButton()) {
+                console.log(`interacted with ${interaction.customId} by @${user.showname}#${user.id}...`);
+                const data = JSON.parse(interaction.customId) as ButtonInteractionData;
+                let result = null;
+
+                try {
+                    switch (data.type) {
+                        case Application.BUTTON_INTERACTION_TYPE.GAME: 
+                            switch (data.action) {
+                                case Games.ACTION_TYPE.JOIN: result = await Lobbies.join(user, interaction, data.lobby as number); break;
+                                case Games.ACTION_TYPE.DECLINE: result = await Lobbies.decline(user, interaction, data.lobby as number); break;
+                            }
+                    }
+                    console.log(`interacted with ${interaction.customId} by @${user.showname}#${user.id}... OK got ${result}`);   
+                } catch (error) {
+                    console.log(`interacted with ${interaction.customId} by @${user.showname}#${user.id}... ERR (${(error as any)?.code})`);
+                    await this.handleException(user, interaction, error);
+                }
+                
+            } 
         } else return;
+    }
+
+    async handleException(user: Users, interaction: Interaction, error: any) {
+        console.error(error);
+
+        let msg = 'произошла ошибка';
+
+        console.log(error);
+
+        switch (error) {
+            case 400: msg = 'некорректный запрос'; break;
+            case 401: msg = 'авторизация не пройдена'; break;
+            case 403: msg = 'недостаточно прав'; break;
+            case 404: msg = 'не найдено'; break;
+            case 422: msg = 'некорректные параметры'; break;
+            case 429: msg = 'слишком много запросов'; break;
+        } 
+        
+        await interaction.replied || interaction.deferred ? interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }) : interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
     }
 
     async registerCommands() {
