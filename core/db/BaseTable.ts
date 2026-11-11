@@ -16,8 +16,12 @@ export default class BaseTable {
     isExists: boolean = false;
     [index: string]: any;
 
-    static get table(): string { return this.name }
-    get table(): string { return this.constructor.name }
+    static get table(): string { return this.name.split(/(?=[A-Z])/g).map(str => str.toLowerCase()).join('_'); }
+    static get class(): string { return this.name; }
+
+    get table(): string { return this.constructor.name.split(/(?=[A-Z])/g).map(str => str.toLowerCase()).join('_') }
+    get class(): string { return this.constructor.name }
+
     
     static async getById(id: number | string): Promise<BaseTable> {
         const result = await this.getOneByWhere({ id: { value: id } });
@@ -47,6 +51,7 @@ export default class BaseTable {
                 if (err || !result) reject(err ?? result);
                 else {
                     let instances: BaseTable[] = [];
+
                     result.forEach(row => { instances.push(new this(row, true)) })
                     resolve(instances)
                 }
@@ -58,7 +63,7 @@ export default class BaseTable {
         return (await this.getAllByWhere(conditions))[0];
     }
 
-    constructor(record: any | unknown, isExists = false) {
+    constructor(record:  Record<string, any> | any | unknown, isExists = false) {
         this.isExists = isExists;
         if (typeof record == 'object' && !Array.isArray(record) && record !== null) {
             for (let [prop, value] of Object.entries(record)) {
@@ -96,7 +101,7 @@ export default class BaseTable {
                 
                 Application.instance.db?.run(sql, function (err) {
                   row.isExists = true;
-                  row.id = row.id ?? this.lastID;
+                  row.id = (row.id === 0 ? undefined : row.id) ?? this.lastID;
                   
                   resolve(row);
                 })

@@ -1,4 +1,5 @@
 import { Client, Events, GatewayIntentBits, GuildMember, MessageFlags, REST, Routes } from 'discord.js';
+import Games from './db/games.ts';
 
 import fs from 'fs';
 import type { Interaction } from 'discord.js';
@@ -8,8 +9,13 @@ import sqlite3 from 'sqlite3';
 
 import config from './config.json' with { type: 'json' };
 import Users from './db/users.ts';
+import Lobbies from './db/lobbies.ts';
 
-
+interface ButtonInteractionData {
+    type: typeof Application.BUTTON_INTERACTION_TYPE[keyof typeof Application.BUTTON_INTERACTION_TYPE],
+    action: typeof Games.ACTION_TYPE[keyof typeof Games.ACTION_TYPE],
+    lobby?: number
+}
 
 interface IncludedCommandsList { [index: string]: any }
 interface DatabaseExtended extends sqlite3.Database {
@@ -17,6 +23,10 @@ interface DatabaseExtended extends sqlite3.Database {
 }
  
 export class Application {
+    static BUTTON_INTERACTION_TYPE = {
+        GAME: 1
+    }
+
     static instance: Application; 
 
     isClientOnline: boolean = false;
@@ -66,7 +76,7 @@ export class Application {
                 } else {
                     console.log(`opening db from ${path.resolve(config.database.production)}... OK`)
                     console.log(`importing tables models...`)
-                    db.all('SELECT DISTINCT "tbl_name" FROM "sqlite_master"', (async (err, rows) => {
+                    db.all('SELECT DISTINCT "tbl_name" FROM "sqlite_master" WHERE "tbl_name" != \'sqlite_sequence\'', (async (err, rows) => {
                         if (err) reject(err);
                         else {
                             for (const row of rows as Record<string, any>[] ) {
@@ -127,38 +137,51 @@ export class Application {
     }
 
     async handleInteraction(interaction: Interaction) {
-        if (!interaction.isChatInputCommand()) return;
+        if (interaction.isChatInputCommand()) {
+            const user = await this.auth(interaction.member as GuildMember);
+            user.actualize(interaction.member as GuildMember);
 
-        const user = await this.auth(interaction.member as GuildMember);
-        user.actualize(interaction.member as GuildMember);
+            console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}...`)
+            if (!this.commands.hasOwnProperty(interaction.commandName)) {
+                console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR (404)`);
+                return interaction.reply('такой команды нет еблан утырок даун дятел козёл простфиля придурок дибил отстань');
+            }
 
-        console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}...`)
-        if (!this.commands.hasOwnProperty(interaction.commandName)) {
-            console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR (404)`);
-            return interaction.reply('такой команды нет еблан утырок даун дятел козёл простфиля придурок дибил отстань');
-        }
+            try {
+                const result = await this.commands[interaction.commandName].execute(user, interaction);
+                console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}... OK got ${result}`);
+            } catch (error) {
+                console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
+                console.error(error);
 
-        try {
-            const result = await this.commands[interaction.commandName].execute(user, interaction);
-            console.log(`called ${interaction.commandName} by @${user.showname}#${user.id}... OK got ${result}`);
-        } catch (error) {
-            console.error(`called ${interaction.commandName} by @${user.showname}#${user.id}... ERR`);
-            console.error(error);
+                let msg = 'произошла ошибка';
 
-            let msg = 'произошла ошибка';
+                switch ((error as any)?.code) {
+                    case 400: msg = 'некорректный запрос'; break;
+                    case 401: msg = 'авторизация не пройдена'; break;
+                    case 403: msg = 'недостаточно прав'; break;
+                    case 404: msg = 'не найдено'; break;
+                    case 422: msg = 'некорректные параметры'; break;
+                    case 429: msg = 'слишком много запросов'; break;
+                } 
+                
+                await interaction.replied || interaction.deferred ? interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }) : interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
+            }
+        } else if (interaction.isButton()) {    
+            const user = await this.auth(interaction.member as GuildMember);
+            user.actualize(interaction.member as GuildMember);
 
-            switch ((error as any)?.code) {
-                case 400: msg = 'некорректный запрос'; break;
-                case 401: msg = 'авторизация не пройдена'; break;
-                case 403: msg = 'недостаточно прав'; break;
-                case 404: msg = 'не найдено'; break;
-                case 422: msg = 'некорректные параметры'; break;
-                case 429: msg = 'слишком много запросов'; break;
-            } 
+            const data = JSON.parse(interaction.customId) as ButtonInteractionData;
+
+            switch (data.type) {
+                case Application.BUTTON_INTERACTION_TYPE.GAME: 
+                    switch (data.action) {
+                        case Games.ACTION_TYPE.JOIN: return Lobbies.join(user, interaction, data.lobby as number)
+                        case Games.ACTION_TYPE.DECLINE: return Lobbies.decline(user, interaction, data.lobby as number)
+                    }
+            }
             
-            await interaction.replied || interaction.deferred ? interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }) : interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
-        }
-
+        } else return;
     }
 
     async registerCommands() {
