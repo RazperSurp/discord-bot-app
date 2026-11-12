@@ -71,7 +71,7 @@ export default class BaseTable {
                 else {
                     const propMasked = `_${prop}`;
                     if (prop.includes('permission')) value = new PermissionSet(value as any);
-                    Object.defineProperty(this, propMasked, { value: value, writable: true });
+                    Object.defineProperty(this, propMasked, { value: !isNaN(Number(value)) ? (Number(value) > Number.MAX_SAFE_INTEGER ? `${value}` : value) : value, writable: true });
                     Object.defineProperty(this, prop, {
                         enumerable: true,
                         get: () => { return this[propMasked] },
@@ -91,6 +91,12 @@ export default class BaseTable {
         }
     }
 
+    delete(): null {
+        Application.instance.db?.exec(`delete from ${this.table} where id = ${this.id}`, err => { if (err) console.log(err); });
+        for (const key of Object.keys(this)) this[key] = null;
+        return null;
+    }
+
     insert(): Promise<BaseTable> { 
         return new Promise((resolve, reject) => {
             const row = this;
@@ -102,7 +108,7 @@ export default class BaseTable {
                 Application.instance.db?.run(sql, function (err) {
                     row.isExists = true;
                     row.id = (row.id === 0 ? undefined : row.id) ?? this.lastID;
-                    
+                        
                     resolve(row);
                 })
             }

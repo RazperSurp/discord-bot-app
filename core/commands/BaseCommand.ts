@@ -51,8 +51,7 @@ export default class BaseCommand {
 
     static async execute(user: Users, interaction: ChatInputCommandInteraction): Promise<unknown> {
         const instance = new this(interaction);
-        if (user.permissions?.has(instance.permissions.mask))
-            instance.result = await instance.call(user, interaction);
+        if (user.permissions?.has(instance.permissions.mask)) instance.result = await instance.call(user, interaction);
         else throw 403;
         
         return instance.result;
@@ -62,10 +61,7 @@ export default class BaseCommand {
         try {
             const result = await this._do(user, interaction);
             return result;
-        } catch (err) {
-            console.error(`called ${this.class}... ERR`)
-            console.error(err);
-        }
+        } catch (err) { throw err; }
         
     }
 

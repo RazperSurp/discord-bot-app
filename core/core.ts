@@ -2,7 +2,7 @@ import { Client, Events, GatewayIntentBits, GuildMember, MessageFlags, REST, Rou
 import Games from './db/games.ts';
 
 import fs from 'fs';
-import type { Interaction } from 'discord.js';
+import type { ButtonInteraction, ChatInputCommandInteraction, Interaction } from 'discord.js';
 import path from 'path'; 
 
 import sqlite3 from 'sqlite3';
@@ -107,7 +107,7 @@ export class Application {
 
             for (const name of Object.keys(config.commands.list)) await Application.instance.includeCommand(name);
 
-            console.log(`using token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"...`);
+            console.log(`logging in with token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"...`);
             try {
                 Application.instance.client?.login(process.env.DISCORD_TOKEN);
                 Application.instance.client?.once(Events.ClientReady, (readyClient) => {
@@ -115,7 +115,7 @@ export class Application {
                     Application.instance.isClientOnline = true;
                     Application.instance.rest = new REST().setToken(process.env.DISCORD_TOKEN ?? '');
 
-                    console.log(`using token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"... OK as ${Application.instance.client.user?.tag}`);
+                    console.log(`logging in with token "${process.env.DISCORD_TOKEN?.substring(0,4)}****${process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 4)}"... OK as ${Application.instance.client.user?.tag}`);
                     Application.instance.registerCommands().then(() => {
                         Application.instance.client?.on(Events.InteractionCreate, interaction => { return Application.instance.handleInteraction(interaction) })
 
@@ -185,23 +185,24 @@ export class Application {
         } else return;
     }
 
-    async handleException(user: Users, interaction: Interaction, error: any) {
+    async handleException(user: Users, interaction: ChatInputCommandInteraction | ButtonInteraction, error: any) {
         console.error(error);
 
         let msg = 'произошла ошибка';
-
-        console.log(error);
 
         switch (error) {
             case 400: msg = 'некорректный запрос'; break;
             case 401: msg = 'авторизация не пройдена'; break;
             case 403: msg = 'недостаточно прав'; break;
             case 404: msg = 'не найдено'; break;
+            case 409: msg = 'уже выполнено или не требуется'; break;
             case 422: msg = 'некорректные параметры'; break;
             case 429: msg = 'слишком много запросов'; break;
         } 
         
-        await interaction.replied || interaction.deferred ? interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }) : interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
+        await interaction.replied || interaction.deferred ? 
+            interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }) 
+            : interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
     }
 
     async registerCommands() {
@@ -215,13 +216,13 @@ export class Application {
         }
         console.log(`registering commands... OK`)
 
-        console.log(`putting commands to rest...`)
+        console.log(`putting commands to REST...`)
         this.client?.guilds.cache.each((guild, id) => {
-            console.log(`- putting commands on G#${id}...`)
+            console.log(`- putting commands on ${guild.name}#${id}...`)
             this.rest?.put(Routes.applicationGuildCommands(this.client?.user?.id ?? '', id), { body: commands });
-            console.log(`- putting commands on G#${id}... OK`)
+            console.log(`- putting commands on ${guild.name}#${id}... OK`)
         })
-        console.log(`putting commands to rest... OK`)
+        console.log(`putting commands to REST... OK`)
     }
 
     async includeCommand(name: string) {
