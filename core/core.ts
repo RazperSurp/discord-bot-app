@@ -10,6 +10,7 @@ import sqlite3 from 'sqlite3';
 import config from './config.json' with { type: 'json' };
 import Users from './db/users.ts';
 import Lobbies from './db/lobbies.ts';
+import Temp from './temp.ts';
 
 interface ButtonInteractionData {
     type: typeof Application.BUTTON_INTERACTION_TYPE[keyof typeof Application.BUTTON_INTERACTION_TYPE],
@@ -27,6 +28,7 @@ export class Application {
         GAME: 1
     }
 
+    static TEMP: Record<string, Temp> = {}
     static instance: Application; 
 
     isClientOnline: boolean = false;
@@ -175,7 +177,7 @@ export class Application {
                                 case Games.ACTION_TYPE.DECLINE: result = await Lobbies.decline(user, interaction, data.lobby as number); break;
                             }
                     }
-                    console.log(`interacted with ${interaction.customId} by @${user.showname}#${user.id}... OK got ${result}`);   
+                    console.log(`interacted with ${interaction.customId} by @${user.showname}#${user.id}... OK got ${result ?? 'null'}`);   
                 } catch (error) {
                     console.log(`interacted with ${interaction.customId} by @${user.showname}#${user.id}... ERR (${(error as any)?.code})`);
                     await this.handleException(user, interaction, error);

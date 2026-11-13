@@ -16,6 +16,16 @@
         "canUseAdminCommands": 16
     },
     "maxEmbedFields": 23,
+    "games": {
+        "lobby": {
+            "timer": 20 ,
+            "timerPeriod": 1500,
+            "fillerNull": "░",
+            "fillerHigh": "█",
+            "fillerMid": "█",
+            "fillerLow": "█"
+        }
+    }, 
     "commands": {
         "path": "./commands",
         "list": {
